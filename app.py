@@ -1,23 +1,19 @@
 import random
 import math
+import numpy as np
 
 class Layer():
     def __init__(self,input_size,output):
-        self.input_vals = [ 0.0 for _ in range(input_size)]
-        self.output = [ 0.0 for _ in range(output)]
-        self.biases = [ 0.0 for _ in range(output)]
-        self.weights = [[random.uniform(-1,1) for _ in range(input_size)] for _ in range(output)]
+        self.input_vals = np.zeros(input_size)
+        self.output = np.zeros(output)
+        self.biases = np.zeros(output)
+        self.weights = np.random.uniform(-1,1,size=(input_size,output))
         
     
     @staticmethod
     def feedForward(layer,input_vals): 
-        layer.input_vals = input_vals
-        layer.output = [0.0] * len(layer.output) 
-        for o in range(len(layer.output)):
-            for i in range(len(layer.input_vals)):
-                layer.output[o] += layer.input_vals[i] * layer.weights[o][i]
-            layer.output[o]+=layer.biases[o]
-            layer.output[o] = 1 / (1 + math.exp(-layer.output[o])) 
+        layer.input_vals = np.array(input_vals)
+        layer.output = Relu(np.dot(layer.input_vals,layer.weights) + layer.biases) #Relu(dot product + biases)
             
         return layer.output
 
@@ -32,6 +28,9 @@ class Neural_network():
         for i in range(1,len(layers)):
             x = Layer.feedForward(layers[i],x)
         return x
+
+def Relu(arr):
+    return np.maximum(0,arr)
 
 if __name__=='__main__':
     network = Neural_network([4,7,2])
