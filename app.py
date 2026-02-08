@@ -9,16 +9,16 @@ class Layer_Relu():
         self.biases = np.zeros(output)
         self.weights = np.random.uniform(-1,1,size=(input_size,output))
 
-        self.d_biases 
-        self.d_weights
-        self.d_inputs
+        # self.d_biases 
+        # self.d_weights
+        # self.d_inputs
            
-    def feedForward(self,input_vals): 
+    def feedForward(self,input_vals,target): 
         self.input_vals = np.atleast_2d(input_vals)
         self.output = Relu(np.dot(self.input_vals,self.weights) + self.biases) #Relu(dot product + biases)       
         return self.output
     
-    def backPropagate(self,dvalues): #dvalues - accumulated derivatives to this point
+    def backPropagate(self,dvalues, target): #dvalues - accumulated derivatives to this point
         dvalues = dvalues.copy()
         dvalues = np.where(self.output > 0, dvalues, 0)
         self.d_biases = np.sum(dvalues,axis=0,keepdims=True)
@@ -26,26 +26,64 @@ class Layer_Relu():
         self.d_inputs = np.dot(dvalues,self.weights.T)
         return self.d_inputs
     
-class Layer_softmax(Layer_Relu):
-    def feedForward(self,input_vals):
+class Layer_softmax_plus_crossentropy(Layer_Relu):
+    def feedForward(self,input_vals,target):
         self.input_vals = np.atleast_2d(input_vals)
         self.output = softmax(np.dot(self.input_vals,self.weights) + self.biases) 
-        return self.output
+        loss = cross_entropy(self.output,target)
+        return loss
+    
+    def backPropagate(self, dvalues, target): #calculating derivative for cross_entorpy(softmax(x),target)
+        if np.ndim(target)==1:
+            target_matrix = np.zeros(shape=(self.output.shape))
+            batch_size = target.shape[0]
+            target_matrix[np.arange(batch_size),target]=1
+        else:
+            target_matrix=target
+        dvalues = dvalues.copy()
+        dvalues = (self.output - target_matrix) / self.output.shape[0]
+        self.d_biases = np.sum(dvalues,axis=0,keepdims=True)
+        self.d_weights = np.dot(self.input_vals.T,dvalues)
+        self.d_inputs = np.dot(dvalues,self.weights.T)
+        return self.d_inputs
 
 class Neural_network():
     def __init__(self,nodes):
         self.layers=[]
         for i in range(len(nodes)-1):
             if i == len(nodes)-2:
-                self.layers.append(Layer_softmax(nodes[i],nodes[i+1]))
+                self.layers.append(Layer_softmax_plus_crossentropy(nodes[i],nodes[i+1]))
             else:
                 self.layers.append(Layer_Relu(nodes[i],nodes[i+1]))
     
-    def feedForward(self,input_vals):
-        x = self.layers[0].feedForward(input_vals)
+    def feedForward(self,input_vals,target):
+        x = self.layers[0].feedForward(input_vals,target)
         for i in range(1,len(self.layers)):
-            x = self.layers[i].feedForward(x)
+            x = self.layers[i].feedForward(x,target)
         return x
+    
+    def backPropagate(self,target):
+        x = self.layers[-1].backPropagate(None,target)
+        for i in range(len(self.layers)-2,-1,-1):
+            x = self.layers[i].backPropagate(x,target)
+        
+class Optimizer():
+    def __init__(self,alfa,decay=0.001):
+        self.learning_rate=alfa
+        self.current_lr
+        self.decay=decay
+        self.iteratrions=0 
+    
+    def optimize(self,neural_network):
+        self.current_lr = self.learning_rate/(1+self.decay*self.iteratrions)
+        for layer in neural_network.layers:
+            layer.weights += -(layer.d_weights*self.learning_rate)
+            layer.biases += -(layer.d_biases*self.learning_rate)
+
+
+        self.iteratrions+=1
+
+
 
 def Relu(arr):
     return np.maximum(0,arr)
@@ -67,4 +105,4 @@ def cross_entropy(arr,target):
 
 if __name__=='__main__':
     network = Neural_network([4,7,2])
-    print(cross_entropy(network.feedForward([1,1,1,1]),[1]))
+    print(network.feedForward([1,1,1,1],[1]))
