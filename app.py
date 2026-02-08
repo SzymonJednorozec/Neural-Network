@@ -6,7 +6,7 @@ class Layer_Relu():
     def __init__(self,input_size,output):
         self.input_vals = np.zeros(input_size)
         self.output = np.zeros(output)
-        self.biases = np.zeros(output)
+        self.biases = np.zeros((1, output))
         self.weights = np.random.uniform(-1,1,size=(input_size,output))
 
         # self.d_biases 
@@ -40,7 +40,6 @@ class Layer_softmax_plus_crossentropy(Layer_Relu):
             target_matrix[np.arange(batch_size),target]=1
         else:
             target_matrix=target
-        dvalues = dvalues.copy()
         dvalues = (self.output - target_matrix) / self.output.shape[0]
         self.d_biases = np.sum(dvalues,axis=0,keepdims=True)
         self.d_weights = np.dot(self.input_vals.T,dvalues)
@@ -142,6 +141,7 @@ def softmax(arr):
     return outcome
 
 def cross_entropy(arr,target):
+    arr = np.clip(arr, 1e-7, 1 - 1e-7)
     if np.ndim(target) == 2:
         outcome = -np.sum(target*np.log(arr),axis=1)
     elif np.ndim(target) == 1:
@@ -152,5 +152,21 @@ def cross_entropy(arr,target):
 
 
 if __name__=='__main__':
-    network = Neural_network([4,7,2])
-    print(network.feedForward([1,1,1,1],[1]))
+    X = np.random.randn(100, 2)
+    y = (X[:, 0] < X[:, 1]).astype(int)
+
+    network = Neural_network([2, 8, 2])
+    optimizer = Adam_optimizer(learning_rate=0.05, decay=1e-3)
+
+    for epoch in range(201):
+        loss_vector = network.feedForward(X, y)
+        loss = np.mean(loss_vector)
+
+        network.backPropagate(y)
+
+        optimizer.optimize(network)
+
+        if epoch % 20 == 0:
+            predictions = np.argmax(network.layers[-1].output, axis=1)
+            accuracy = np.mean(predictions == y)
+            print(f"Epoch {epoch:3} | Loss: {loss:.4f} | Accuracy: {accuracy:.2%}")
